@@ -8,6 +8,7 @@ using Soenneker.Utils.Environment;
 using Soenneker.Utils.Process.Abstract;
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -70,14 +71,14 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         if (filePath == null)
             throw new InvalidOperationException("Segment OpenAPI document download failed.");
 
-        string rawDocument = await _fileUtil.Read(filePath, cancellationToken: cancellationToken);
+        string rawDocument = await ReadPossiblyGzippedText(filePath, cancellationToken);
         string trimmedDocument = rawDocument.TrimStart();
 
         if (trimmedDocument.StartsWith('<'))
         {
             await ExtractOpenApiFromRedoclyState(openApiDocumentUrl, rawDocument, gitDirectory, targetFilePath, cancellationToken);
             filePath = targetFilePath;
-            rawDocument = await _fileUtil.Read(filePath, cancellationToken: cancellationToken);
+            rawDocument = await ReadPossiblyGzippedText(filePath, cancellationToken);
             trimmedDocument = rawDocument.TrimStart();
         }
 
@@ -123,7 +124,7 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
             if (downloadedStatePath == null)
                 throw new InvalidOperationException("Segment's Redocly state asset download failed.");
 
-            string stateScript = await _fileUtil.Read(downloadedStatePath, cancellationToken: cancellationToken);
+            string stateScript = await ReadPossiblyGzippedText(downloadedStatePath, cancellationToken);
             Match payloadMatch = Regex.Match(stateScript, @"JSON\.parse\((?<payload>""(?:\\.|[^""\\])*"")\)", RegexOptions.Singleline);
 
             if (!payloadMatch.Success)
@@ -145,6 +146,24 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         finally
         {
             await _fileUtil.DeleteIfExists(stateFilePath, cancellationToken: cancellationToken);
+        }
+    }
+
+    private static async ValueTask<string> ReadPossiblyGzippedText(string filePath, CancellationToken cancellationToken)
+    {
+        await using FileStream fileStream = File.OpenRead(filePath);
+        int firstByte = fileStream.ReadByte();
+        int secondByte = fileStream.ReadByte();
+        fileStream.Position = 0;
+
+        Stream contentStream = firstByte == 0x1F && secondByte == 0x8B
+            ? new GZipStream(fileStream, CompressionMode.Decompress)
+            : fileStream;
+
+        await using (contentStream)
+        using (var reader = new StreamReader(contentStream))
+        {
+            return await reader.ReadToEndAsync(cancellationToken);
         }
     }
 
