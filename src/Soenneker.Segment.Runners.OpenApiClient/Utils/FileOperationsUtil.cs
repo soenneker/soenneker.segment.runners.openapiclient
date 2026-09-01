@@ -162,9 +162,9 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
         }
     }
 
-    private static async ValueTask<string> ReadPossiblyGzippedText(string filePath, CancellationToken cancellationToken)
+    private async ValueTask<string> ReadPossiblyGzippedText(string filePath, CancellationToken cancellationToken)
     {
-        await using FileStream fileStream = File.OpenRead(filePath);
+        await using FileStream fileStream = _fileUtil.OpenRead(filePath, log: false);
         int firstByte = fileStream.ReadByte();
         int secondByte = fileStream.ReadByte();
         fileStream.Position = 0;
