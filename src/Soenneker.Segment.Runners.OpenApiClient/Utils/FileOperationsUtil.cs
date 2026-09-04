@@ -25,6 +25,7 @@ using System.Collections.Generic;
 
 namespace Soenneker.Segment.Runners.OpenApiClient.Utils;
 
+/// <inheritdoc cref="IFileOperationsUtil" />
 public sealed class FileOperationsUtil : IFileOperationsUtil
 {
     private readonly ILogger<FileOperationsUtil> _logger;
