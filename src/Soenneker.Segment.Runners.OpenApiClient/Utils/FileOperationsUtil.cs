@@ -144,7 +144,7 @@ public sealed class FileOperationsUtil : IFileOperationsUtil
             if (!payloadMatch.Success)
                 throw new InvalidOperationException("Segment's Redocly state payload could not be located.");
 
-            string? stateJson = JsonSerializer.Deserialize<string>(payloadMatch.Groups["payload"].Value);
+            string? stateJson = JsonSerializer.Deserialize(payloadMatch.Groups["payload"].Value, AotJsonContext.Get<string>());
 
             if (stateJson == null)
                 throw new InvalidOperationException("Segment's Redocly state payload was empty.");
